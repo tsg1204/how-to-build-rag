@@ -1,0 +1,32 @@
+export const IN_SCOPE_TOPICS = [
+  'ingestion',
+  'chunking',
+  'embeddings',
+  'vector storage',
+  'retrieval',
+  'reranking',
+  'prompting',
+  'grounding',
+  'evaluation',
+  'production',
+] as const;
+
+export const ALLOWLIST_KEYWORDS = [
+  'rag',
+  'retrieval',
+  'embedding',
+  'chunk',
+  'vector',
+  'qdrant',
+  'pinecone',
+  'bm25',
+  'hybrid',
+  'mmr',
+  'rerank',
+  'grounding',
+  'citation',
+  'eval',
+  'latency',
+  'monitoring',
+  'cost',
+];

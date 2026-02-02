@@ -4,6 +4,11 @@ import { SOURCES } from './sources';
 import { ingestUrl } from '@/app/scripts/ingest_one';
 import { discoverRssItems } from './discover_rss';
 
+const DRY_RUN =
+  process.argv.includes('--dry-run') || process.env.DRY_RUN === '1';
+
+console.log(`[ingest] dry-run=${DRY_RUN}`);
+
 async function discoverFromListPage(
   listUrl: string,
   allowedPrefixes?: string[],
@@ -43,6 +48,12 @@ async function run() {
       console.log(`[source-notes] ${src.notes}`);
       for (const url of src.urls ?? []) {
         console.log(`\n[manual] Ingesting: ${url}`);
+
+        if (DRY_RUN) {
+          console.log(`→ [dry-run] would ingest: ${url}`);
+          continue;
+        }
+
         const count = await ingestUrl({
           url,
           publisher: src.publisher,
@@ -76,6 +87,12 @@ async function run() {
       const N = Number(process.env.INGEST_DISCOVERY_LIMIT ?? 10);
       for (const url of urls.slice(0, N)) {
         console.log(`\n[scrape] Ingesting: ${url}`);
+
+        if (DRY_RUN) {
+          console.log(`→ [dry-run] would ingest: ${url}`);
+          continue;
+        }
+
         const count = await ingestUrl({
           url,
           publisher: src.publisher,
@@ -138,6 +155,12 @@ async function run() {
 
       for (const url of urls) {
         console.log(`\n[rss] Ingesting: ${url}`);
+
+        if (DRY_RUN) {
+          console.log(`→ [dry-run] would ingest: ${url}`);
+          continue;
+        }
+
         const count = await ingestUrl({
           url,
           publisher: src.publisher,

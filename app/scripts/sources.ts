@@ -38,6 +38,15 @@ export const SOURCES: Source[] = [
       'Vector DB patterns, filtering, hybrid search, RAG guidance; scrape list page.',
   },
   {
+    id: 'pinecone-articles',
+    publisher: 'Pinecone',
+    mode: 'scrape',
+    listUrl: 'https://pinecone.ai/learn/',
+    allowedUrlPrefixes: ['https://pinecone.ai/learn/'],
+    updateCadence: 'weekly',
+    notes: 'Chunking strategies, RAG knowledge systems; scrape list page.',
+  },
+  {
     id: 'curated-manual',
     publisher: 'Curated',
     mode: 'manual',
@@ -47,6 +56,8 @@ export const SOURCES: Source[] = [
       'https://qdrant.tech/articles/how-to-choose-an-embedding-model',
       'https://medium.com/@jolalf/langchain-software-framework-retrieval-augmented-generation-rag-case-study-b60073d388c9/',
       'https://medium.com/python-in-plain-english/how-to-build-a-rag-system-that-actually-works-04259eb3a66f/',
+      'https://www.pinecone.io/learn/chunking-strategies/',
+      'https://www.pinecone.io/learn/retrieval-augmented-generation/',
     ],
     updateCadence: 'as_needed',
     notes:

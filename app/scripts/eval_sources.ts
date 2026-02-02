@@ -1,6 +1,6 @@
-import "dotenv/config";
+import 'dotenv/config';
 
-const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
 
 /**
  * v1 evaluation = regression test on sources/citations, not answer quality.
@@ -15,17 +15,20 @@ type EvalCase = {
 
 const CASES: EvalCase[] = [
   {
-    id: "qdrant-embeddings",
-    query: "How do I choose an embedding model for RAG?",
-    expectedUrlSubstrings: ["qdrant.tech/articles/how-to-choose-an-embedding-model"],
+    id: 'qdrant-embeddings',
+    query: 'How do I choose an embedding model for RAG?',
+    expectedUrlSubstrings: [
+      'qdrant.tech/articles/how-to-choose-an-embedding-model',
+    ],
     allowNotCovered: true,
   },
   {
-    id: "chunking-basics",
-    query: "How do I choose chunk size for RAG?",
+    id: 'chunking-basics',
+    query: 'How do I choose chunk size for RAG?',
     expectedUrlSubstrings: [
       // add the URL of your chunking article once you ingest it
       // "pinecone.io/learn/chunking-strategies",
+      'https://www.pinecone.io/learn/chunking-strategies/',
     ],
     allowNotCovered: true,
   },
@@ -37,8 +40,8 @@ function normalize(s: string) {
 
 async function callApi(query: string) {
   const res = await fetch(`${BASE_URL}/api/query`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),
   });
 
@@ -49,7 +52,7 @@ async function callApi(query: string) {
 function extractCitationUrls(json: any): string[] {
   const citations = Array.isArray(json?.citations) ? json.citations : [];
   return citations
-    .map((c: any) => (typeof c?.url === "string" ? c.url : ""))
+    .map((c: any) => (typeof c?.url === 'string' ? c.url : ''))
     .filter(Boolean);
 }
 
@@ -73,21 +76,21 @@ async function run() {
       : true;
 
     const okState =
-      state === "answer" ||
-      (t.allowNotCovered && state === "not_covered") ||
-      state === "deny" ||
-      state === "ask_to_reframe";
+      state === 'answer' ||
+      (t.allowNotCovered && state === 'not_covered') ||
+      state === 'deny' ||
+      state === 'ask_to_reframe';
 
     const ok =
       res.ok &&
       okState &&
       // only enforce source match if we actually answered (and have expectations)
-      (state !== "answer" ? true : matched);
+      (state !== 'answer' ? true : matched);
 
     if (ok) {
       pass++;
       console.log(`✅ [${t.id}] state=${state}`);
-      if (state === "answer") {
+      if (state === 'answer') {
         console.log(`   citations=${urls.length}`);
       }
     } else {
@@ -95,7 +98,9 @@ async function run() {
       console.log(`❌ [${t.id}]`);
       console.log(`   http=${res.status} state=${state}`);
       console.log(`   expected=${JSON.stringify(t.expectedUrlSubstrings)}`);
-      console.log(`   got_urls=${JSON.stringify(urls.slice(0, 5))}${urls.length > 5 ? "..." : ""}`);
+      console.log(
+        `   got_urls=${JSON.stringify(urls.slice(0, 5))}${urls.length > 5 ? '...' : ''}`,
+      );
       console.log(`   body=${JSON.stringify(json).slice(0, 400)}...`);
     }
   }

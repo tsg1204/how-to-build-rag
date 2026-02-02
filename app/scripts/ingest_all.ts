@@ -67,7 +67,8 @@ async function run() {
       // basic: prefer article pages, skip the list page itself
       const urls = discovered
         .filter((u) => u !== src.listUrl)
-        .filter((u) => u.includes('/articles/'));
+        .filter((u) => u.includes('/articles/'))
+        .filter((u) => u.includes('/learn/'));
 
       console.log(`Discovered ${urls.length} URLs`);
 

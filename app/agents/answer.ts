@@ -74,8 +74,19 @@ export async function generateAnswer(params: {
       ${context}
       `.trim();
 
+  // We intentionally use a small, fast model here.
+  // In this RAG system the LLM's role is controlled synthesis:
+  // - structure retrieved content (Goal / Steps / Pitfalls / How to test)
+  // - follow strict formatting and refusal rules
+  // - avoid hallucination (knowledge comes from retrieval, not the model)
+  //
+  // Retrieval quality matters more than raw model intelligence in v1,
+  // so a lightweight model gives better latency, cost, and reliability.
+  // This can be swapped for a larger model in v2 if deeper reasoning is needed.
+  const MODEL = 'gpt-4.1-mini';
+
   const resp = await openaiClient.chat.completions.create({
-    model: 'gpt-4.1-mini',
+    model: MODEL,
     temperature: 0.2,
     messages: [{ role: 'user', content: prompt }],
   });

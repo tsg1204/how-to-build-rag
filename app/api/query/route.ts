@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { classifyQuery } from '@/app/agents/guardrail';
 import { retrieveTopChunks } from '@/app/agents/retrieve';
+import { rerankTopK } from '@/app/agents/rerank';
+import { cohereClient } from '../../libs/cohere';
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -39,25 +41,51 @@ export async function POST(req: NextRequest) {
   }
 
   // allow → retrieve (stub: return chunks only)
-  const chunks = await retrieveTopChunks(query);
+  //const chunks = await retrieveTopChunks(query);
+
+  const topK = Number(process.env.RAG_TOP_K ?? 8);
+  const candidateLimit = Math.max(topK * 3, 20);
+
+  const candidates = await retrieveTopChunks(query, candidateLimit);
+
+  // IMPORTANT: ensure text exists for reranker
+  const candidateDocs = candidates.map((c) => ({
+    ...c,
+    text: (c.payload?.text ?? '') as string,
+  }));
+
+  const reranked = await rerankTopK({
+    query,
+    docs: candidateDocs,
+    topK,
+  });
 
   return NextResponse.json(
     {
       state: 'allow',
       query,
-      retrieved_count: chunks.length,
-      results: chunks.map((c) => ({
-        id: c.id,
-        score: c.score,
-        // keep this flexible to match your existing payload shape
-        publisher: c.payload?.publisher,
-        title: c.payload?.title,
-        url: c.payload?.url,
-        published_date: c.payload?.published_date,
-        section_path: c.payload?.section_path,
-        chunk_index: c.payload?.chunk_index,
-        text: c.payload?.text ?? c.payload?.content,
-      })),
+      candidate_count: candidates.length,
+      retrieved_count: reranked.length,
+      reranked: Boolean(cohereClient),
+      results: reranked.map((c) => {
+        const p = c.payload || {};
+        return {
+          id: c.id,
+          score: c.score,
+          text: p.text,
+          citation: {
+            publisher: p.publisher ?? null,
+            title: p.title ?? null,
+            url: p.url ?? p.source ?? null,
+            section_path: p.section_path ?? null,
+            published_date: p.published_date ?? null,
+            published_date_text: p.published_date_text ?? null,
+            retrieved_at: p.retrieved_at ?? p.fetched_at ?? null,
+            chunk_key: p.chunk_key ?? null,
+            chunk_index: p.chunk_index ?? null,
+          },
+        };
+      }),
       note: 'Retrieval is wired. Answer generation comes next.',
     },
     { status: 200 },
@@ -69,3 +97,6 @@ export async function POST(req: NextRequest) {
 //   -H "Content-Type: application/json" \
 //   -d '{"query":"How do I choose chunk size for RAG?"}' | jq
 
+// curl -s http://localhost:3000/api/query \
+//   -H "Content-Type: application/json" \
+//   -d '{"query":"How do I choose an embedding model for RAG?"}'

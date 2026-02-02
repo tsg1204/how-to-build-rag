@@ -1,51 +1,167 @@
+import crypto from 'crypto';
+import 'dotenv/config';
+import * as cheerio from 'cheerio';
 import { qdrantClient, ARTICLES_COLLECTION } from '@/app/libs/qdrant';
 import { openaiClient } from '@/app/libs/openai';
-import "dotenv/config";
-
 
 const URL = 'https://qdrant.tech/articles/how-to-choose-an-embedding-model/';
+const PUBLISHER = 'Qdrant';
 
-async function run() {
-  // 1) fetch
-  const html = await fetch(URL).then((r) => r.text());
+// soft limits (simple + works)
+const MAX_CHARS = 3800;
+const OVERLAP_CHARS = 400;
 
-  // 2) VERY simple text extraction (good enough for first doc)
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/g, '')
-    .replace(/<style[\s\S]*?<\/style>/g, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // 3) chunk (single chunk for now)
-  const chunkText = text.slice(0, 4000);
-
-  // 4) embed
-  const emb = await openaiClient.embeddings.create({
-    model: 'text-embedding-3-small',
-    dimensions: 512,
-    input: chunkText,
-  });
-
-  // 5) upsert
-  await qdrantClient.upsert(ARTICLES_COLLECTION, {
-    points: [
-      {
-        id: crypto.randomUUID(),
-        vector: emb.data[0].embedding,
-        payload: {
-          text: chunkText,
-          publisher: 'Qdrant',
-          title: 'How to choose an embedding model',
-          url: URL,
-          source: URL,
-          dataset: 'how-to-build-rag',
-        },
-      },
-    ],
-  });
-
-  console.log('Ingested 1 document');
+function sha256(s: string) {
+  return crypto.createHash('sha256').update(s).digest('hex');
 }
 
-run();
+function cleanText(s: string) {
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function chunkWithOverlap(text: string) {
+  const chunks: string[] = [];
+  let start = 0;
+
+  while (start < text.length) {
+    const end = Math.min(start + MAX_CHARS, text.length);
+    const slice = text.slice(start, end).trim();
+    if (slice) chunks.push(slice);
+
+    if (end === text.length) break;
+    start = Math.max(0, end - OVERLAP_CHARS);
+  }
+
+  return chunks;
+}
+
+async function run() {
+  const fetchedAt = new Date().toISOString();
+
+  // 1) fetch + parse
+  const html = await fetch(URL).then((r) => r.text());
+  const $ = cheerio.load(html);
+
+  const title =
+    cleanText($("meta[property='og:title']").attr('content') || '') ||
+    cleanText($('title').text()) ||
+    'Untitled';
+
+  const publishedDate =
+    $('time[datetime]').attr('datetime') ||
+    $("meta[property='article:published_time']").attr('content') ||
+    '';
+
+  // Try to scope to article; fallback to body
+  const $root = $('article').first().length
+    ? $('article').first()
+    : $('body').first();
+
+  // 2) build section-based blocks using H2/H3 headings
+  type Section = { sectionPath: string; text: string };
+  const sections: Section[] = [];
+
+  let currentPath = 'Intro';
+  let buffer: string[] = [];
+
+  function flush() {
+    const text = cleanText(buffer.join('\n'));
+    if (text) sections.push({ sectionPath: currentPath, text });
+    buffer = [];
+  }
+
+  // Walk content in order
+  $root.find('h2, h3, p, li').each((_, el) => {
+    const tag = el.tagName?.toLowerCase();
+    const t = cleanText($(el).text());
+    if (!t) return;
+
+    if (tag === 'h2' || tag === 'h3') {
+      flush();
+      // Simple section_path (H2 > H3)
+      if (tag === 'h2') currentPath = t;
+      else currentPath = `${currentPath} → ${t}`;
+    } else {
+      buffer.push(t);
+    }
+  });
+
+  flush();
+
+  // 3) doc identity + versioning (minimal)
+  const docId = URL; // stable
+  const contentHash = sha256(
+    sections.map((s) => `${s.sectionPath}\n${s.text}`).join('\n\n'),
+  );
+  const docVersion = fetchedAt; // simple versioning for now
+
+  // 4) create chunks per section with overlap
+  const chunkPayloads: Array<{
+    id: string;
+    text: string;
+    payload: Record<string, unknown>;
+  }> = [];
+
+  for (const sec of sections) {
+    const secChunks = chunkWithOverlap(sec.text);
+    secChunks.forEach((chunkText, i) => {
+      const pointId = crypto.randomUUID();
+      const chunkKey = `${docId}::${sec.sectionPath}::chunk:${i}`;
+
+      chunkPayloads.push({
+        id: pointId,
+        text: chunkText,
+        payload: {
+          //keep a stable readable key for debugging and citations
+          chunk_key: chunkKey,
+          dataset: 'how-to-build-rag',
+          publisher: PUBLISHER,
+          title,
+          url: URL,
+          source: URL,
+          published_date: publishedDate || null,
+          published_date_text:
+            cleanText($('time').first().text()) ||
+            cleanText($("meta[name='date']").attr('content') || '') ||
+            null,
+          fetched_at: fetchedAt,
+          doc_id: docId,
+          doc_version: docVersion,
+          content_hash: contentHash,
+          section_path: sec.sectionPath,
+          chunk_index: i,
+          // total_chunks for this section (not whole doc; good enough for v1)
+          total_chunks: secChunks.length,
+          text: chunkText,
+        },
+      });
+    });
+  }
+
+  // 5) embed + upsert
+  const points = [];
+  for (const item of chunkPayloads) {
+    const emb = await openaiClient.embeddings.create({
+      model: 'text-embedding-3-small',
+      dimensions: 512,
+      input: item.text,
+    });
+
+    points.push({
+      id: item.id,
+      vector: emb.data[0].embedding,
+      payload: item.payload,
+    });
+  }
+
+  await qdrantClient.upsert(ARTICLES_COLLECTION, { points });
+
+  console.log(
+    `Ingested ${points.length} chunks from "${title}" into collection "${ARTICLES_COLLECTION}".`,
+  );
+}
+
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

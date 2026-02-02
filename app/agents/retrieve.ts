@@ -12,6 +12,7 @@ export type RetrievedChunk = {
 
 export async function retrieveTopChunks(
   query: string,
+  limit = TOP_K,
 ): Promise<RetrievedChunk[]> {
   // 1) embed query
   const embedding = await openaiClient.embeddings.create({
@@ -21,13 +22,13 @@ export async function retrieveTopChunks(
   });
 
   // 2) qdrant search
-  const candidateResults = await qdrantClient.search('articles', {
+  const candidateResults = await qdrantClient.search('how_to_build_rag', {
     vector: embedding.data[0].embedding,
-    limit: TOP_K,
+    limit,
     with_payload: true,
   });
 
-  await qdrantClient.getCollection('articles');
+  await qdrantClient.getCollection('how_to_build_rag');
   console.log(candidateResults);
   // 3) normalize
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

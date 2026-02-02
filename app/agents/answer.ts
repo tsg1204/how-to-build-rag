@@ -44,10 +44,28 @@ export async function generateAnswer(params: {
       If the context is insufficient, say "Not covered by the dataset."
 
       Format EXACTLY as:
-      Goal
-      Steps
-      Pitfalls
-      How to test
+      Return markdown.
+
+      Use this exact structure and formatting:
+      ## Goal
+      1–2 sentences
+
+      ## Steps
+      - bullet point
+      - bullet point
+      - bullet point
+
+      ## Pitfalls
+      - bullet point
+      - bullet point
+
+      ## How to test
+      - bullet point
+      - bullet point
+
+      Do NOT include a "Citations" section.
+      Do NOT mention sources in the answer text.
+      If the context is insufficient, write: "Not covered by the dataset."
 
       Question:
       ${query}

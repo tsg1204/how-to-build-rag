@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 type QueryResponse = {
   state: 'answer' | 'not_covered' | 'deny' | 'ask_to_reframe';
@@ -43,6 +44,27 @@ export default function Page() {
     }
   }
 
+  function toMarkdown(answer: string) {
+    const withHeadings = answer
+      .replace(/^\s*Goal\s*:?\s*$/m, '## Goal')
+      .replace(/^\s*Steps\s*:?\s*$/m, '## Steps')
+      .replace(/^\s*Pitfalls\s*:?\s*$/m, '## Pitfalls')
+      .replace(/^\s*How to test\s*:?\s*$/m, '## How to test');
+
+    return withHeadings.replace(
+      /## Steps\s*\n+([\s\S]*?)(\n## |\n*$)/,
+      (_, block, next) => {
+        const lines = block
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean);
+
+        const bullets = lines.map((l) => `- ${l}`).join('\n');
+        return `## Steps\n${bullets}${next}`;
+      },
+    );
+  }
+
   return (
     <main style={{ maxWidth: 900, margin: '40px auto', padding: 16 }}>
       <h1>How to Build RAG</h1>
@@ -68,31 +90,77 @@ export default function Page() {
       {data?.answer && (
         <>
           <hr style={{ margin: '24px 0' }} />
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{data.answer}</pre>
+          <div style={{ lineHeight: 1.5 }}>
+            <ReactMarkdown
+              components={{
+                h2: ({ children }) => (
+                  <h2
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      marginTop: 18,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {children}
+                  </h2>
+                ),
+                ul: ({ children }) => (
+                  <ul
+                    style={{
+                      paddingLeft: 22,
+                      listStyleType: 'disc',
+                      marginTop: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {children}
+                  </ul>
+                ),
+                li: ({ children }) => (
+                  <li style={{ marginBottom: 6 }}>{children}</li>
+                ),
+                p: ({ children }) => (
+                  <p style={{ marginBottom: 10 }}>{children}</p>
+                ),
+              }}
+            >
+              {data.answer}
+            </ReactMarkdown>
+          </div>
         </>
       )}
 
-      {data && data.citations && data.citations.length > 0 && (
+      {data?.citations?.length ? (
         <>
           <h3>Citations</h3>
-          <ul>
-            {data.citations.map((c) => (
-              <li key={c.ref}>
-                <strong>{c.ref}</strong> {c.title}
+          <ol
+            style={{ listStyleType: 'decimal', paddingLeft: 22, marginTop: 8 }}
+          >
+            {Array.from(
+              new Map(
+                data.citations.map((c) => [
+                  `${c.url ?? ''}::${c.section_path ?? ''}::${c.title ?? ''}`,
+                  c,
+                ]),
+              ).values(),
+            ).map((c, i) => (
+              <li key={`${c.ref}-${i}`} style={{ marginBottom: 6 }}>
+                <em>{c.title}</em>
                 {c.section_path ? ` — ${c.section_path}` : ''}
-                {c.url && (
+                {c.url ? (
                   <>
                     {' '}
                     <a href={c.url} target="_blank" rel="noreferrer">
                       link
                     </a>
                   </>
-                )}
+                ) : null}
               </li>
             ))}
-          </ul>
+          </ol>
         </>
-      )}
+      ) : null}
 
       {data?.state === 'not_covered' && (
         <p>

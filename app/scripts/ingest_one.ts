@@ -14,6 +14,41 @@ function cleanText(s: string) {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+function splitSentences(text: string) {
+  // simple, good-enough sentence split for v1
+  return text
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function makeSectionSummaryBullets(text: string, maxBullets = 5) {
+  const sents = splitSentences(text);
+
+  const bullets: string[] = [];
+  const seen = new Set<string>();
+
+  for (const s of sents) {
+    // avoid super short / junk
+    if (s.length < 40) continue;
+
+    // keep bullets readable
+    const clipped = s.length > 220 ? s.slice(0, 220).trim() + '…' : s;
+
+    const key = clipped.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    bullets.push(clipped);
+    if (bullets.length >= maxBullets) break;
+  }
+
+  if (bullets.length === 0) return null;
+
+  return bullets.map((b) => `- ${b}`).join('\n');
+}
+
 function chunkWithOverlap(text: string) {
   const chunks: string[] = [];
   let start = 0;
@@ -256,8 +291,10 @@ export async function ingestUrl(params: {
   type Section = { sectionPath: string; text: string };
   const sections: Section[] = [];
 
+  let currentH2 = 'Intro';
   let currentPath = 'Intro';
   let buffer: string[] = [];
+  let sawHeading = false;
 
   function flush() {
     const text = cleanText(buffer.join('\n'));
@@ -270,16 +307,65 @@ export async function ingestUrl(params: {
     const t = cleanText($(el).text());
     if (!t) return;
 
-    if (tag === 'h2' || tag === 'h3') {
+    if (tag === 'h2') {
+      sawHeading = true;
       flush();
-      if (tag === 'h2') currentPath = t;
-      else currentPath = `${currentPath} → ${t}`;
-    } else {
-      buffer.push(t);
+      currentH2 = t || 'Intro';
+      currentPath = currentH2;
+      return;
     }
+
+    if (tag === 'h3') {
+      sawHeading = true;
+      flush();
+      currentPath = `${currentH2} → ${t}`;
+      return;
+    }
+
+    buffer.push(t);
   });
 
   flush();
+
+  if (!sawHeading && sections.length === 0) {
+    const allText = cleanText($root.text());
+    if (allText) sections.push({ sectionPath: 'Intro', text: allText });
+  }
+
+  // 2.5) Add one "section summary chunk" per major H2 section (v1 heuristic)
+  // Major section = section_path without " → " and not Intro
+  const summarySections: Section[] = [];
+
+  const majorH2s = Array.from(
+    new Set(
+      sections
+        .map((s) => s.sectionPath)
+        .filter((p) => p !== 'Intro' && !p.includes(' → ')),
+    ),
+  );
+
+  for (const h2 of majorH2s) {
+    // gather H2 text + any H2 → H3 subsections
+    const combined = sections
+      .filter(
+        (s) => s.sectionPath === h2 || s.sectionPath.startsWith(`${h2} → `),
+      )
+      .map((s) => s.text)
+      .join('\n\n');
+
+    const bullets = makeSectionSummaryBullets(combined, 5);
+    if (!bullets) continue;
+
+    summarySections.push({
+      sectionPath: h2,
+      text: `Section summary:\n${bullets}`,
+    });
+  }
+
+  // Prepend summaries so they embed + upsert first (helps retrieval a bit)
+  if (summarySections.length) {
+    sections.unshift(...summarySections);
+  }
 
   // Fallback: some sites (like OpenAI) may not expose much in <article> / <p> in a way we capture.
   // If extracted text is too small, seed Intro with meta description so relevance + embeddings work.
@@ -338,10 +424,14 @@ export async function ingestUrl(params: {
 
   for (const sec of sections) {
     const secChunks = chunkWithOverlap(sec.text);
+    const isSummary = sec.text.startsWith('Section summary:\n');
 
     secChunks.forEach((chunkText, i) => {
       const pointId = crypto.randomUUID();
-      const chunkKey = `${docId}::${sec.sectionPath}::chunk:${i}`;
+      const chunkKey = isSummary
+        ? `${docId}::${sec.sectionPath}::summary`
+        : `${docId}::${sec.sectionPath}::chunk:${i}`;
+
       const topic = inferTopic(title, sec.sectionPath, chunkText);
 
       chunkPayloads.push({
@@ -366,10 +456,15 @@ export async function ingestUrl(params: {
           total_chunks: secChunks.length,
           text: chunkText,
           topic,
+          chunk_role: isSummary ? 'section_summary' : 'content',
         },
       });
     });
   }
+  console.log(
+    'SECTION_PATH_SAMPLE:',
+    sections.slice(0, 5).map((s) => s.sectionPath),
+  );
 
   // 5) embed + upsert
   const points = [];

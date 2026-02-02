@@ -72,6 +72,7 @@ export const SOURCES: Source[] = [
       'https://www.blog.langchain.com/applying-openai-rag/',
       'https://www.blog.langchain.com/pinecone-serverless/',
       'https://www.llamaindex.ai/blog/ragarch-building-a-no-code-rag-pipeline-configuration-one-click-rag-code-generation-tool-powered-b6e8eeb70089',
+      'https://www.llamaindex.ai/blog/building-blocks-of-llm-report-generation-beyond-basic-rag',
     ],
     updateCadence: 'as_needed',
     notes:

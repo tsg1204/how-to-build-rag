@@ -3,39 +3,39 @@ import { GuardrailDecision } from './types';
 const QUERY_TOPICS = [
   {
     topic: 'ingestion',
-    keywords: ['rss', 'scrape', 'ingest', 'parsing', 'dedup', 'version'],
+    keywords: ['rss', 'scrape', 'ingest', 'parsing', 'dedup', 'version', 'rag'],
   },
   {
     topic: 'chunking',
-    keywords: ['chunk', 'overlap', 'split', 'section-based'],
+    keywords: ['chunk', 'overlap', 'split', 'section-based', 'rag'],
   },
   {
     topic: 'embeddings',
-    keywords: ['embedding', 'embeddings', 'dimension', 'tokenizer'],
+    keywords: ['embedding', 'embeddings', 'dimension', 'tokenizer', 'rag', 'vector',],
   },
   {
     topic: 'vector_storage',
-    keywords: ['qdrant', 'payload', 'filter', 'collection', 'index'],
+    keywords: ['qdrant', 'payload', 'filter', 'collection', 'index', 'rag', 'vector','collections','storage', 'cluster'],
   },
   {
     topic: 'retrieval',
-    keywords: ['retrieval', 'search', 'top-k', 'hybrid', 'bm25', 'mmr'],
+    keywords: ['retrieval', 'search', 'top-k', 'hybrid', 'bm25', 'mmr', 'rag', 'database', 'db', 'vector'],
   },
   {
     topic: 'reranking',
-    keywords: ['rerank', 'reranking', 'cross-encoder', 'cohere'],
+    keywords: ['rerank', 'reranking', 'cross-encoder', 'cohere', 'rag', 'sorting', 'ranking', 'relevance', 'score', 'reranking', 'reranker', 'reranking model', 'reranking algorithm', 'reranking function', 'reranking pipeline', 'reranking system', 'reranking architecture', 'reranking design', 'reranking implementation', 'reranking optimization', 'reranking performance', 'reranking scalability', 'reranking reliability', 'reranking robustness', 'reranking safety'],
   },
   {
     topic: 'prompting_grounding',
-    keywords: ['grounding', 'context', 'citations', 'hallucination'],
+    keywords: ['grounding', 'context', 'citations', 'hallucination', 'rag', 'prompting', 'context window', 'context length', 'context size', 'context embedding', 'context vector', 'context representation'],
   },
   {
     topic: 'evaluation',
-    keywords: ['evaluation', 'eval', 'benchmark', 'mteb', 'metrics'],
+    keywords: ['evaluation', 'eval', 'benchmark', 'mteb', 'metrics', 'rag', 'analysis', 'reliability', 'robustness', 'safety'],
   },
   {
     topic: 'production_ops',
-    keywords: ['latency', 'throughput', 'cost', 'monitoring', 'cache'],
+    keywords: ['latency', 'throughput', 'cost', 'monitoring', 'cache', 'rag', 'performance', 'optimization', 'scaling'],
   },
 ] as const;
 

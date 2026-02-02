@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { classifyQuery } from '@/app/agents/guardrail';
 import { retrieveTopChunks } from '@/app/agents/retrieve';
 import { rerankTopK } from '@/app/agents/rerank';
-import { cohereClient } from '../../libs/cohere';
+import { generateAnswer, type Chunk } from '@/app/agents/answer';
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -60,36 +60,52 @@ export async function POST(req: NextRequest) {
     topK,
   });
 
-  return NextResponse.json(
-    {
-      state: 'allow',
-      query,
-      candidate_count: candidates.length,
-      retrieved_count: reranked.length,
-      reranked: Boolean(cohereClient),
-      results: reranked.map((c) => {
-        const p = c.payload || {};
-        return {
-          id: c.id,
-          score: c.score,
-          text: p.text,
-          citation: {
-            publisher: p.publisher ?? null,
-            title: p.title ?? null,
-            url: p.url ?? p.source ?? null,
-            section_path: p.section_path ?? null,
-            published_date: p.published_date ?? null,
-            published_date_text: p.published_date_text ?? null,
-            retrieved_at: p.retrieved_at ?? p.fetched_at ?? null,
-            chunk_key: p.chunk_key ?? null,
-            chunk_index: p.chunk_index ?? null,
-          },
-        };
+  const answer = await generateAnswer({
+    query,
+    chunks: reranked.map(
+      (r): Chunk => ({
+        id: r.id,
+        text: r.text ?? '',
+        citation: {
+          publisher: (r.payload?.publisher ?? null) as
+            | string
+            | null
+            | undefined,
+          title: (r.payload?.title ?? null) as string | null | undefined,
+          url: (r.payload?.url ?? r.payload?.source ?? null) as
+            | string
+            | null
+            | undefined,
+          section_path: (r.payload?.section_path ?? null) as
+            | string
+            | null
+            | undefined,
+          published_date: (r.payload?.published_date ?? null) as
+            | string
+            | null
+            | undefined,
+          published_date_text: (r.payload?.published_date_text ?? null) as
+            | string
+            | null
+            | undefined,
+          retrieved_at: (r.payload?.retrieved_at ??
+            r.payload?.fetched_at ??
+            null) as string | null | undefined,
+          chunk_index: (r.payload?.chunk_index ?? null) as
+            | number
+            | null
+            | undefined,
+        },
       }),
-      note: 'Retrieval is wired. Answer generation comes next.',
-    },
-    { status: 200 },
-  );
+    ),
+  });
+
+  return NextResponse.json({
+    state: answer.state,
+    query,
+    answer: answer.answer,
+    citations: answer.citations,
+  });
 }
 
 //Quick test

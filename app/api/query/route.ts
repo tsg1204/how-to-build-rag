@@ -106,10 +106,14 @@ export async function POST(req: NextRequest) {
     topK,
   });
 
+  const retrievalScoreById = new Map(
+    candidates.map((c) => [String(c.id), c.score]),
+  );
+
   const answer = await generateAnswer({
     query,
     chunks: reranked.map(
-      (r): Chunk => ({
+      (r, i): Chunk => ({
         id: r.id,
         text: r.text ?? '',
         citation: {
@@ -142,8 +146,32 @@ export async function POST(req: NextRequest) {
             | null
             | undefined,
         },
+        // NEW: diagnostics (safe to ignore in prompt)
+        debug: {
+          retrieval_score: retrievalScoreById.get(String(r.id)) ?? null,
+          rerank_rank: i + 1,
+          rerank_score: (r as any).rerankScore ?? (r as any).score ?? null,
+        },
       }),
     ),
+  });
+
+  const DEBUG = process.env.DEBUG === '1';
+
+  const trace = reranked.map((r, i) => {
+    const url = (r.payload?.url ?? r.payload?.source ?? null) as string | null;
+    const title = (r.payload?.title ?? null) as string | null;
+    const section_path = (r.payload?.section_path ?? null) as string | null;
+
+    return {
+      rerank_rank: i + 1,
+      rerank_score: (r as any).rerankScore ?? (r as any).score ?? null,
+      retrieval_score: retrievalScoreById.get(String(r.id)) ?? null,
+      id: r.id,
+      title,
+      section_path,
+      url,
+    };
   });
 
   return NextResponse.json({
@@ -153,6 +181,7 @@ export async function POST(req: NextRequest) {
     answer: answer.answer,
     citations: answer.citations,
     debug,
+    ...(DEBUG ? { trace } : undefined),
   });
 }
 

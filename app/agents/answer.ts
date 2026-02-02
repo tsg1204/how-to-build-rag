@@ -13,6 +13,11 @@ export type Chunk = {
     retrieved_at?: string | null;
     chunk_index?: number | null;
   };
+  debug?: {
+    retrieval_score: number | null;
+    rerank_rank: number;
+    rerank_score: number | null;
+  };
 };
 
 export async function generateAnswer(params: {

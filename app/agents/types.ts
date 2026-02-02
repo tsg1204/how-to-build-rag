@@ -1,4 +1,4 @@
 export type GuardrailDecision =
-  | { state: 'allow' }
-  | { state: 'ask_to_reframe'; example: string }
-  | { state: 'deny' };
+  | { state: 'allow'; matchedTopics?: string[] }
+  | { state: 'ask_to_reframe'; example: string; matchedTopics?: string[] }
+  | { state: 'deny'; matchedTopics: string[] };

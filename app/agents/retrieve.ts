@@ -1,7 +1,6 @@
 import { openaiClient } from '@/app/libs/openai';
 import { qdrantClient, ARTICLES_COLLECTION } from '@/app/libs/qdrant';
 
-const VECTOR_NAME = process.env.QDRANT_VECTOR_NAME; // optional
 const TOP_K = Number(process.env.RAG_TOP_K ?? 8);
 
 export type RetrievedChunk = {
@@ -13,6 +12,7 @@ export type RetrievedChunk = {
 export async function retrieveTopChunks(
   query: string,
   limit = TOP_K,
+  topics?: string[],
 ): Promise<RetrievedChunk[]> {
   // 1) embed query
   const embedding = await openaiClient.embeddings.create({
@@ -22,27 +22,47 @@ export async function retrieveTopChunks(
   });
 
   // 2) qdrant search
-  const candidateResults = await qdrantClient.search('how_to_build_rag', {
-    vector: embedding.data[0].embedding,
-    limit,
-    with_payload: true,
-  });
+  const filter = {
+    must_not: [{ key: 'is_doc_marker', match: { value: true } }],
+    ...(topics?.length
+      ? { must: [{ key: 'topic', match: { any: topics } }] }
+      : {}),
+  };
 
-  await qdrantClient.getCollection('how_to_build_rag');
-  console.log(candidateResults);
-  // 3) normalize
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return candidateResults.map((result: any) => {
-    const payload = result.payload as Record<string, unknown>;
+  try {
+    const candidateResults = await qdrantClient.search(ARTICLES_COLLECTION, {
+      vector: embedding.data[0].embedding,
+      limit,
+      with_payload: true,
+      with_vector: false,
+      filter,
+    });
 
-    return {
+    return candidateResults.map((result: any) => ({
       id: result.id,
       score: result.score,
-      text:
-        (payload.text as string) ||
-        (payload.content as string) ||
-        JSON.stringify(payload),
-      payload, // ← keep this for citations
-    };
-  });
+      payload: result.payload,
+    }));
+  } catch (e: any) {
+    console.log('QDRANT_ERROR:', e?.data?.status?.error ?? e?.message ?? e);
+    throw e;
+  }
+
+  // await qdrantClient.getCollection('how_to_build_rag');
+  // console.log(candidateResults);
+  // // 3) normalize
+  // // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // return candidateResults.map((result: any) => {
+  //   const payload = result.payload as Record<string, unknown>;
+
+  //   return {
+  //     id: result.id,
+  //     score: result.score,
+  //     text:
+  //       (payload.text as string) ||
+  //       (payload.content as string) ||
+  //       JSON.stringify(payload),
+  //     payload, // ← keep this for citations
+  //   };
+  // });
 }

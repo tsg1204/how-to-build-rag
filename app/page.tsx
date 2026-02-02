@@ -44,26 +44,12 @@ export default function Page() {
     }
   }
 
-  function toMarkdown(answer: string) {
-    const withHeadings = answer
-      .replace(/^\s*Goal\s*:?\s*$/m, '## Goal')
-      .replace(/^\s*Steps\s*:?\s*$/m, '## Steps')
-      .replace(/^\s*Pitfalls\s*:?\s*$/m, '## Pitfalls')
-      .replace(/^\s*How to test\s*:?\s*$/m, '## How to test');
-
-    return withHeadings.replace(
-      /## Steps\s*\n+([\s\S]*?)(\n## |\n*$)/,
-      (_, block, next) => {
-        const lines = block
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean);
-
-        const bullets = lines.map((l) => `- ${l}`).join('\n');
-        return `## Steps\n${bullets}${next}`;
-      },
-    );
-  }
+  const WRAP: React.CSSProperties = {
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-all',
+    maxWidth: '100%',
+  };
 
   return (
     <main style={{ maxWidth: 900, margin: '40px auto', padding: 16 }}>
@@ -74,23 +60,77 @@ export default function Page() {
         placeholder="Ask a RAG-building question…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        style={{ width: '100%', padding: 12 }}
+        style={{
+          width: '100%',
+          padding: 12,
+          border: '1px solid #ccc',
+          borderRadius: 6,
+          fontSize: 14,
+        }}
       />
 
-      <button
-        onClick={ask}
-        disabled={loading}
-        style={{ marginTop: 12, padding: '8px 16px' }}
-      >
-        {loading ? 'Thinking…' : 'Ask'}
-      </button>
+      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+        <button
+          onClick={ask}
+          disabled={loading}
+          style={{
+            padding: '10px 18px',
+            background: '#111',
+            color: '#fff',
+            border: '1px solid #ccc',
+            borderRadius: 6,
+            cursor: loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {loading ? 'Thinking…' : 'Ask'}
+        </button>
+
+        <button
+          onClick={() => {
+            setQuery('');
+            setData(null);
+            setError(null);
+          }}
+          style={{
+            padding: '10px 18px',
+            background: '#111',
+            border: '1px solid #ccc',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Reset
+        </button>
+      </div>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {data?.answer && (
-        <>
-          <hr style={{ margin: '24px 0' }} />
-          <div style={{ lineHeight: 1.5 }}>
+      {/* Answer window — always visible */}
+      <div
+        style={{
+          marginTop: 24,
+          padding: 16,
+          border: '1px solid #ddd',
+          borderRadius: 8,
+          background: '#111',
+          minHeight: 200,
+          maxHeight: 420,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          maxWidth: '100%',
+          minWidth: 0,
+        }}
+      >
+        {data?.answer ? (
+          <div
+            style={{
+              whiteSpace: 'normal',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              maxWidth: '100%',
+              minWidth: 0,
+            }}
+          >
             <ReactMarkdown
               components={{
                 h2: ({ children }) => (
@@ -100,10 +140,24 @@ export default function Page() {
                       fontWeight: 700,
                       marginTop: 18,
                       marginBottom: 8,
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
                     }}
                   >
                     {children}
                   </h2>
+                ),
+                p: ({ children }) => (
+                  <p
+                    style={{
+                      marginBottom: 10,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {children}
+                  </p>
                 ),
                 ul: ({ children }) => (
                   <ul
@@ -118,25 +172,77 @@ export default function Page() {
                   </ul>
                 ),
                 li: ({ children }) => (
-                  <li style={{ marginBottom: 6 }}>{children}</li>
+                  <li
+                    style={{
+                      marginBottom: 6,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {children}
+                  </li>
                 ),
-                p: ({ children }) => (
-                  <p style={{ marginBottom: 10 }}>{children}</p>
+                pre: ({ children }) => (
+                  <pre
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                      marginTop: 8,
+                      marginBottom: 8,
+                      padding: 12,
+                      background: 'rgba(255,255,255,0.08)',
+                      borderRadius: 6,
+                      overflow: 'auto',
+                      maxWidth: '100%',
+                      minWidth: 0,
+                    }}
+                  >
+                    {children}
+                  </pre>
+                ),
+                code: ({ children }) => (
+                  <code
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {children}
+                  </code>
                 ),
               }}
             >
               {data.answer}
             </ReactMarkdown>
           </div>
-        </>
-      )}
+        ) : (
+          <span style={{ color: '#777' }}>The answer will appear here.</span>
+        )}
+      </div>
 
+      {/* Citations window */}
       {data?.citations?.length ? (
-        <>
-          <h3>Citations</h3>
-          <ol
-            style={{ listStyleType: 'decimal', paddingLeft: 22, marginTop: 8 }}
-          >
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            border: '1px solid #ddd',
+            borderRadius: 8,
+            background: '#111',
+            color: '#fff',
+            maxHeight: 220,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Citations</h3>
+          <ol style={{ listStyleType: 'decimal', paddingLeft: 22 }}>
             {Array.from(
               new Map(
                 data.citations.map((c) => [
@@ -145,21 +251,26 @@ export default function Page() {
                 ]),
               ).values(),
             ).map((c, i) => (
-              <li key={`${c.ref}-${i}`} style={{ marginBottom: 6 }}>
+              <li key={`${c.ref}-${i}`} style={{ marginBottom: 6, ...WRAP }}>
                 <em>{c.title}</em>
                 {c.section_path ? ` — ${c.section_path}` : ''}
                 {c.url ? (
                   <>
                     {' '}
-                    <a href={c.url} target="_blank" rel="noreferrer">
-                      link
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ ...WRAP, display: 'inline-block' }}
+                    >
+                      {c.url}
                     </a>
                   </>
                 ) : null}
               </li>
             ))}
           </ol>
-        </>
+        </div>
       ) : null}
 
       {data?.state === 'not_covered' && (

@@ -4,6 +4,26 @@ import { retrieveTopChunks } from '@/app/agents/retrieve';
 import { rerankTopK } from '@/app/agents/rerank';
 import { generateAnswer, type Chunk } from '@/app/agents/answer';
 
+function dedupeByChunkKey<T extends { payload?: Record<string, unknown> }>(
+  items: T[],
+) {
+  const seen = new Set<string>();
+  const out: T[] = [];
+
+  for (const it of items) {
+    const p = it.payload ?? {};
+    const key =
+      (p.chunk_key as string | undefined) ??
+      `${p.doc_id ?? p.url ?? 'doc'}::${p.section_path ?? 'sec'}::${p.chunk_index ?? 'x'}`;
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+
+  return out;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const query = typeof body?.query === 'string' ? body.query.trim() : '';
@@ -21,6 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         state: 'deny',
+        matchedTopics: decision.matchedTopics || [],
         message:
           'This assistant is limited to questions about building RAG systems (retrieval, chunking, evaluation, etc.).',
       },
@@ -32,6 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         state: 'ask_to_reframe',
+        matchedTopics: decision.matchedTopics,
         message:
           'This assistant focuses on how to build RAG systems. Please reframe your question as a RAG-building question.',
         example: decision.example,
@@ -42,17 +64,41 @@ export async function POST(req: NextRequest) {
 
   // allow → retrieve (stub: return chunks only)
   //const chunks = await retrieveTopChunks(query);
-
   const topK = Number(process.env.RAG_TOP_K ?? 8);
   const candidateLimit = Math.max(topK * 3, 20);
 
-  const candidates = await retrieveTopChunks(query, candidateLimit);
+  const candidatesRaw = await retrieveTopChunks(
+    query,
+    candidateLimit,
+    decision.matchedTopics,
+  );
+
+  let candidates = dedupeByChunkKey(candidatesRaw);
+  if (candidates.length === 0) {
+    // fallback: no topic filter
+    candidates = await retrieveTopChunks(query, candidateLimit);
+  }
+
+  const debug = {
+    candidateLimit,
+    candidatesRawCount: candidatesRaw.length,
+    candidatesDedupedCount: candidates.length,
+  };
 
   // IMPORTANT: ensure text exists for reranker
   const candidateDocs = candidates.map((c) => ({
     ...c,
     text: (c.payload?.text ?? '') as string,
   }));
+
+  if (candidates.length === 0) {
+    return NextResponse.json({
+      state: 'not_covered',
+      query,
+      message: 'Not covered by the dataset.',
+      matchedTopics: decision.matchedTopics,
+    });
+  }
 
   const reranked = await rerankTopK({
     query,
@@ -102,9 +148,11 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     state: answer.state,
+    matchedTopics: decision.matchedTopics,
     query,
     answer: answer.answer,
     citations: answer.citations,
+    debug,
   });
 }
 

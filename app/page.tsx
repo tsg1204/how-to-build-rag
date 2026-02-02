@@ -1,65 +1,119 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+
+type QueryResponse = {
+  state: 'answer' | 'not_covered' | 'deny' | 'ask_to_reframe';
+  query: string;
+  answer?: string;
+  citations?: Array<{
+    ref: string;
+    title?: string | null;
+    url?: string | null;
+    section_path?: string | null;
+  }>;
+  message?: string;
+  example?: string;
+};
+
+export default function Page() {
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<QueryResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask() {
+    if (!query.trim()) return;
+    setLoading(true);
+    setError(null);
+    setData(null);
+
+    try {
+      const res = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const json = await res.json();
+      setData(json);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Request failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main style={{ maxWidth: 900, margin: '40px auto', padding: 16 }}>
+      <h1>How to Build RAG</h1>
+
+      <textarea
+        rows={4}
+        placeholder="Ask a RAG-building question…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ width: '100%', padding: 12 }}
+      />
+
+      <button
+        onClick={ask}
+        disabled={loading}
+        style={{ marginTop: 12, padding: '8px 16px' }}
+      >
+        {loading ? 'Thinking…' : 'Ask'}
+      </button>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      {data?.answer && (
+        <>
+          <hr style={{ margin: '24px 0' }} />
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{data.answer}</pre>
+        </>
+      )}
+
+      {data && data.citations && data.citations.length > 0 && (
+        <>
+          <h3>Citations</h3>
+          <ul>
+            {data.citations.map((c) => (
+              <li key={c.ref}>
+                <strong>{c.ref}</strong> {c.title}
+                {c.section_path ? ` — ${c.section_path}` : ''}
+                {c.url && (
+                  <>
+                    {' '}
+                    <a href={c.url} target="_blank" rel="noreferrer">
+                      link
+                    </a>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {data?.state === 'not_covered' && (
+        <p>
+          <em>{data.message}</em>
+        </p>
+      )}
+      {data?.state === 'deny' && (
+        <p style={{ color: '#555', fontStyle: 'italic' }}>{data.message}</p>
+      )}
+
+      {data?.state === 'ask_to_reframe' && (
+        <p style={{ color: '#555' }}>
+          {data.message}
+          {data.example && (
+            <>
+              <br />
+              <strong>Example:</strong> {data.example}
+            </>
+          )}
+        </p>
+      )}
+    </main>
   );
 }

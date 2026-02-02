@@ -1,14 +1,23 @@
-import "dotenv/config";
+import 'dotenv/config';
 
-const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
 
 const TESTS = [
   // in-scope
-  { query: "How do I choose chunk size for RAG?", expectState: ["answer", "not_covered"] },
-  { query: "How do I choose an embedding model for RAG?", expectState: ["answer", "not_covered"] },
+  {
+    query: 'How do I choose chunk size for RAG?',
+    expectState: ['answer', 'not_covered'],
+  },
+  {
+    query: 'How do I choose an embedding model for RAG?',
+    expectState: ['answer', 'not_covered'],
+  },
 
   // out-of-scope
-  { query: "What is the capital of Spain?", expectState: ["deny", "ask_to_reframe"] },
+  {
+    query: 'What is the capital of Spain?',
+    expectState: ['deny', 'ask_to_reframe'],
+  },
 ] as const;
 
 async function run() {
@@ -17,24 +26,28 @@ async function run() {
 
   for (const t of TESTS) {
     const res = await fetch(`${BASE_URL}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: t.query }),
     });
 
     const json = await res.json().catch(() => ({}));
 
     const okState = t.expectState.includes(json.state);
-    const hasCitations = Array.isArray(json.citations) ? json.citations.length > 0 : false;
+    const hasCitations = Array.isArray(json.citations)
+      ? json.citations.length > 0
+      : false;
 
     // For "answer", require citations (v1 requirement)
-    const okCitations = json.state !== "answer" ? true : hasCitations;
+    const okCitations = json.state !== 'answer' ? true : hasCitations;
 
     const ok = res.ok && okState && okCitations;
 
     if (ok) {
       pass++;
-      console.log(`✅ ${t.query} → state=${json.state} citations=${hasCitations ? json.citations.length : 0}`);
+      console.log(
+        `✅ ${t.query} → state=${json.state} citations=${hasCitations ? json.citations.length : 0}`,
+      );
     } else {
       fail++;
       console.log(`❌ ${t.query}`);

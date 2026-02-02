@@ -13,7 +13,17 @@ async function discoverFromListPage(
   listUrl: string,
   allowedPrefixes?: string[],
 ) {
-  const html = await fetch(listUrl).then((r) => r.text());
+  const html = await fetch(listUrl, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml',
+    },
+  }).then((r) => r.text());
+
+  console.log('SCRAPE_HTML_BYTES:', html.length);
+  console.log('SCRAPE_HTML_HEAD:', html.slice(0, 300).replace(/\s+/g, ' '));
+
   const $ = cheerio.load(html);
 
   const urls = new Set<string>();
@@ -33,6 +43,9 @@ async function discoverFromListPage(
 
     urls.add(abs);
   });
+
+  console.log('SCRAPE_FOUND_URLS:', urls.size);
+  console.log('SCRAPE_SAMPLE_URLS:', Array.from(urls).slice(0, 5));
 
   return Array.from(urls);
 }
@@ -78,8 +91,12 @@ async function run() {
       // basic: prefer article pages, skip the list page itself
       const urls = discovered
         .filter((u) => u !== src.listUrl)
-        .filter((u) => u.includes('/articles/'))
-        .filter((u) => u.includes('/learn/'));
+        .filter(
+          (u) =>
+            u.includes('/articles/') ||
+            u.includes('/learn/') ||
+            u.includes('/blog/'),
+        );
 
       console.log(`Discovered ${urls.length} URLs`);
 

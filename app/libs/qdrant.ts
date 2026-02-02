@@ -1,17 +1,20 @@
-import {QdrantClient} from '@qdrant/js-client-rest';
+import { QdrantClient } from '@qdrant/js-client-rest';
 
 export const qdrantClient = new QdrantClient({
-    url: process.env.QDRANT_URL as string,
-    apiKey: process.env.QDRANT_API_KEY as string,
+  url: process.env.QDRANT_URL as string,
+  apiKey: process.env.QDRANT_API_KEY as string,
 });
 
-try {
-    const result = await qdrantClient.getCollections();
-    console.log('List of collections:', result.collections);
-} catch (err) {
-    console.error('Could not get collections:', err);
-}
+// try {
+//   const result = await qdrantClient.getCollections();
+//   console.log('List of collections:', result.collections);
+// } catch (err) {
+//   console.error('Could not get collections:', err);
+// }
+
+// await qdrantClient.createCollection("how_to_build_rag", {
+//     vectors: { size: 512, distance: "Cosine" },
+//   });
 
 export const ARTICLES_COLLECTION =
-  process.env.QDRANT_COLLECTION_ARTICLES || "articles";
-  
+  process.env.QDRANT_COLLECTION_ARTICLES || 'how_to_build_rag';

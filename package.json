@@ -11,6 +11,7 @@
   "dependencies": {
     "@qdrant/js-client-rest": "^1.16.2",
     "cohere-ai": "^7.20.0",
+    "dotenv": "^17.2.3",
     "next": "16.1.6",
     "openai": "^6.17.0",
     "react": "19.2.3",

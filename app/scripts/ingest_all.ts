@@ -2,8 +2,7 @@ import 'dotenv/config';
 import * as cheerio from 'cheerio';
 import { SOURCES } from './sources';
 import { ingestUrl } from '@/app/scripts/ingest_one';
-import { discoverRssItems } from "./discover_rss";
-
+import { discoverRssItems } from './discover_rss';
 
 async function discoverFromListPage(
   listUrl: string,
@@ -38,6 +37,10 @@ async function run() {
 
   for (const src of SOURCES) {
     if (src.mode === 'manual') {
+      console.log(
+        `\n[source] id=${src.id} publisher=${src.publisher} mode=${src.mode} cadence=${src.updateCadence}`,
+      );
+      console.log(`[source-notes] ${src.notes}`);
       for (const url of src.urls ?? []) {
         console.log(`\n[manual] Ingesting: ${url}`);
         const count = await ingestUrl({
@@ -51,6 +54,10 @@ async function run() {
     }
 
     if (src.mode === 'scrape') {
+      console.log(
+        `\n[source] id=${src.id} publisher=${src.publisher} mode=${src.mode} cadence=${src.updateCadence}`,
+      );
+      console.log(`[source-notes] ${src.notes}`);
       console.log(`\n[scrape] Discovering from: ${src.listUrl}`);
       const discovered = await discoverFromListPage(
         src.listUrl ?? '',
@@ -78,61 +85,67 @@ async function run() {
       }
     }
 
-    if (src.mode === "rss") {
+    if (src.mode === 'rss') {
+      console.log(
+        `\n[source] id=${src.id} publisher=${src.publisher} mode=${src.mode} cadence=${src.updateCadence}`,
+      );
+      console.log(`[source-notes] ${src.notes}`);
       console.log(`\n[rss] Discovering from: ${src.feedUrl}`);
-    
+
       const limit = Number(process.env.INGEST_DISCOVERY_LIMIT ?? 20);
       const rawItems = await discoverRssItems(src.feedUrl!, limit);
-    
+
       const allowed = [
-        "rag",
-        "retrieval",
-        "embedding",
-        "embeddings",
-        "eval",
-        "evals",
-        "evaluation",
-        "grounding",
-        "hallucination",
-        "vector",
-        "search",
-        "rerank",
-        "reranking",
-        "agents",
-        "tool",
-        "function calling",
-        "reliability",
-        "safety",
+        'rag',
+        'retrieval',
+        'embedding',
+        'embeddings',
+        'eval',
+        'evals',
+        'evaluation',
+        'grounding',
+        'hallucination',
+        'vector',
+        'search',
+        'rerank',
+        'reranking',
+        'agents',
+        'tool',
+        'function calling',
+        'reliability',
+        'safety',
       ];
-    
+
       const items = rawItems.filter((it) => {
         const t = `${it.title}\n${it.snippet}`.toLowerCase();
         return allowed.some((k) => t.includes(k));
       });
-    
-      const urls = (src.allowedUrlPrefixes?.length
-        ? items
-            .map((it) => it.url)
-            .filter((u) => src.allowedUrlPrefixes!.some((p) => u.startsWith(p)))
-        : items.map((it) => it.url)
+
+      const urls = (
+        src.allowedUrlPrefixes?.length
+          ? items
+              .map((it) => it.url)
+              .filter((u) =>
+                src.allowedUrlPrefixes!.some((p) => u.startsWith(p)),
+              )
+          : items.map((it) => it.url)
       ).slice(0, Number(process.env.INGEST_RSS_INGEST_LIMIT ?? 5));
-    
+
       console.log(`Discovered ${rawItems.length} items (raw)`);
       console.log(`Candidate ${items.length} items (keyword match)`);
       console.log(`Ingesting ${urls.length} URLs`);
-    
+
       for (const url of urls) {
         console.log(`\n[rss] Ingesting: ${url}`);
         const count = await ingestUrl({
           url,
           publisher: src.publisher,
-          dataset: "how-to-build-rag",
+          dataset: 'how-to-build-rag',
         });
         total += count;
         console.log(`→ upserted ${count} chunks`);
       }
     }
-    
   }
 
   console.log(`\nDone. Total chunks upserted: ${total}`);

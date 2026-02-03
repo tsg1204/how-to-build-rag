@@ -1,32 +1,10 @@
-export const IN_SCOPE_TOPICS = [
-  'ingestion',
-  'chunking',
-  'embeddings',
-  'vector storage',
-  'retrieval',
-  'reranking',
-  'prompting',
-  'grounding',
-  'evaluation',
-  'production',
-] as const;
-
-export const ALLOWLIST_KEYWORDS = [
-  'rag',
-  'retrieval',
-  'embedding',
-  'chunk',
-  'vector',
-  'qdrant',
-  'pinecone',
-  'bm25',
-  'hybrid',
-  'mmr',
-  'rerank',
-  'grounding',
-  'citation',
-  'eval',
-  'latency',
-  'monitoring',
-  'cost',
-];
+/**
+ * Re-exports from single source of truth. Topic ids and keywords
+ * are derived from app/data/topics.ts (no duplicates).
+ */
+export {
+  ALLOWLIST_KEYWORDS,
+  IN_SCOPE_TOPICS,
+  TOPICS,
+  type TopicId,
+} from '@/app/data/topics';

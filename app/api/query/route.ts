@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateAnswer, payloadToChunk } from '@/app/agents/answer';
 import { classifyQuery } from '@/app/agents/guardrail';
 import { retrieveTopChunks } from '@/app/agents/retrieve';
 import { rerankTopK } from '@/app/agents/rerank';
-import { generateAnswer, type Chunk } from '@/app/agents/answer';
+import { buildTrace } from '@/app/agents/trace';
+import type { RerankedDoc } from '@/app/agents/types';
 
 function dedupeByChunkKey<T extends { payload?: Record<string, unknown> }>(
   items: T[],
@@ -111,71 +113,17 @@ export async function POST(req: NextRequest) {
       candidates.map((c) => [String(c.id), c.score]),
     );
 
-    const answer = await generateAnswer({
-      query,
-      chunks: reranked.map(
-        (r, i): Chunk => ({
-          id: r.id,
-          text: r.text ?? '',
-          citation: {
-            publisher: (r.payload?.publisher ?? null) as
-              | string
-              | null
-              | undefined,
-            title: (r.payload?.title ?? null) as string | null | undefined,
-            url: (r.payload?.url ?? r.payload?.source ?? null) as
-              | string
-              | null
-              | undefined,
-            section_path: (r.payload?.section_path ?? null) as
-              | string
-              | null
-              | undefined,
-            published_date: (r.payload?.published_date ?? null) as
-              | string
-              | null
-              | undefined,
-            published_date_text: (r.payload?.published_date_text ?? null) as
-              | string
-              | null
-              | undefined,
-            retrieved_at: (r.payload?.retrieved_at ??
-              r.payload?.fetched_at ??
-              null) as string | null | undefined,
-            chunk_index: (r.payload?.chunk_index ?? null) as
-              | number
-              | null
-              | undefined,
-          },
-          // NEW: diagnostics (safe to ignore in prompt)
-          debug: {
-            retrieval_score: retrievalScoreById.get(String(r.id)) ?? null,
-            rerank_rank: i + 1,
-            rerank_score: (r as any).rerankScore ?? (r as any).score ?? null,
-          },
-        }),
-      ),
-    });
+    const chunks = reranked.map((r, i) =>
+      payloadToChunk(r as RerankedDoc, {
+        retrievalScoreById,
+        rerankRank: i + 1,
+      }),
+    );
+
+    const answer = await generateAnswer({ query, chunks });
 
     const DEBUG = process.env.DEBUG === '1';
-
-    const trace = reranked.map((r, i) => {
-      const url = (r.payload?.url ?? r.payload?.source ?? null) as
-        | string
-        | null;
-      const title = (r.payload?.title ?? null) as string | null;
-      const section_path = (r.payload?.section_path ?? null) as string | null;
-
-      return {
-        rerank_rank: i + 1,
-        rerank_score: (r as any).rerankScore ?? (r as any).score ?? null,
-        retrieval_score: retrievalScoreById.get(String(r.id)) ?? null,
-        id: r.id,
-        title,
-        section_path,
-        url,
-      };
-    });
+    const trace = buildTrace(reranked, retrievalScoreById);
 
     return NextResponse.json({
       state: answer.state,

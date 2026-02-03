@@ -1,13 +1,10 @@
 import { openaiClient } from '@/app/libs/openai';
 import { qdrantClient, ARTICLES_COLLECTION } from '@/app/libs/qdrant';
+import type { RetrievedChunk } from './types';
 
 const TOP_K = Number(process.env.RAG_TOP_K ?? 8);
 
-export type RetrievedChunk = {
-  id: string | number;
-  score: number;
-  payload?: Record<string, unknown>;
-};
+export type { RetrievedChunk } from './types';
 
 function isVagueQuery(q: string) {
   const s = q.trim().toLowerCase();
@@ -55,8 +52,8 @@ export async function retrieveTopChunks(
       filter,
     });
 
-    const results = candidateResults.map((result: any) => {
-      const payload = result.payload as Record<string, unknown>;
+    const results = candidateResults.map((result) => {
+      const payload = (result.payload ?? {}) as Record<string, unknown>;
       return {
         id: result.id,
         score: result.score,
@@ -80,8 +77,15 @@ export async function retrieveTopChunks(
     }
 
     return results;
-  } catch (e: any) {
-    console.log('QDRANT_ERROR:', e?.data?.status?.error ?? e?.message ?? e);
+  } catch (e: unknown) {
+    const err = e as {
+      data?: { status?: { error?: string } };
+      message?: string;
+    };
+    console.log(
+      'QDRANT_ERROR:',
+      err?.data?.status?.error ?? err?.message ?? String(e),
+    );
     throw e;
   }
 }

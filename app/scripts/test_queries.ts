@@ -31,9 +31,14 @@ async function run() {
       body: JSON.stringify({ query: t.query }),
     });
 
-    const json = await res.json().catch(() => ({}));
+    const json = (await res.json().catch(() => ({}))) as {
+      state?: string;
+      citations?: unknown[];
+    };
 
-    const okState = t.expectState.includes(json.state);
+    const okState =
+      json.state != null &&
+      (t.expectState as readonly string[]).includes(json.state);
     const hasCitations = Array.isArray(json.citations)
       ? json.citations.length > 0
       : false;
@@ -46,13 +51,15 @@ async function run() {
     if (ok) {
       pass++;
       console.log(
-        `✅ ${t.query} → state=${json.state} citations=${hasCitations ? json.citations.length : 0}`,
+        `✅ ${t.query} → state=${json.state} citations=${hasCitations ? (json.citations?.length ?? 0) : 0}`,
       );
     } else {
       fail++;
       console.log(`❌ ${t.query}`);
       console.log(`   http=${res.status} state=${json.state}`);
-      console.log(`   citations=${hasCitations ? json.citations.length : 0}`);
+      console.log(
+        `   citations=${hasCitations ? (json.citations?.length ?? 0) : 0}`,
+      );
       console.log(`   body=${JSON.stringify(json).slice(0, 300)}...`);
     }
   }

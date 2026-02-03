@@ -23,7 +23,13 @@ function hasRequiredHeadings(md: string) {
   return needed.every((h) => md.includes(h));
 }
 
-function uniqKey(c: any) {
+type CitationLike = {
+  url?: string | null;
+  section_path?: string | null;
+  title?: string | null;
+};
+
+function uniqKey(c: CitationLike) {
   return `${c.url ?? ''}::${c.section_path ?? ''}::${c.title ?? ''}`;
 }
 
@@ -66,9 +72,9 @@ async function run() {
     let resp: ApiResponse | null = null;
     try {
       resp = await postQuery(tc.query);
-    } catch (e: any) {
+    } catch (e: unknown) {
       ok = false;
-      out.push(`request_failed: ${e?.message ?? String(e)}`);
+      out.push(`request_failed: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     if (resp) {

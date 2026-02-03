@@ -3,37 +3,10 @@ import 'dotenv/config';
 import * as cheerio from 'cheerio';
 import { qdrantClient, ARTICLES_COLLECTION } from '@/app/libs/qdrant';
 import { openaiClient } from '@/app/libs/openai';
+import { cleanText, chunkWithOverlap, sha256 } from '@/app/libs/text';
 
 const URL = 'https://qdrant.tech/articles/how-to-choose-an-embedding-model/';
 const PUBLISHER = 'Qdrant';
-
-// soft limits (simple + works)
-const MAX_CHARS = 3800;
-const OVERLAP_CHARS = 400;
-
-function sha256(s: string) {
-  return crypto.createHash('sha256').update(s).digest('hex');
-}
-
-function cleanText(s: string) {
-  return s.replace(/\s+/g, ' ').trim();
-}
-
-function chunkWithOverlap(text: string) {
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    const end = Math.min(start + MAX_CHARS, text.length);
-    const slice = text.slice(start, end).trim();
-    if (slice) chunks.push(slice);
-
-    if (end === text.length) break;
-    start = Math.max(0, end - OVERLAP_CHARS);
-  }
-
-  return chunks;
-}
 
 async function run() {
   const fetchedAt = new Date().toISOString();

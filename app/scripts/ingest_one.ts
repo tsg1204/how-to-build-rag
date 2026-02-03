@@ -1,29 +1,10 @@
 import crypto from 'crypto';
 import * as cheerio from 'cheerio';
+import { TOPICS } from '@/app/data/topics';
 import { qdrantClient, ARTICLES_COLLECTION } from '@/app/libs/qdrant';
 import { openaiClient } from '@/app/libs/openai';
-
-const MAX_CHARS = 3800;
-const OVERLAP_CHARS = 400;
-
-function sha256(s: string) {
-  return crypto.createHash('sha256').update(s).digest('hex');
-}
-
-function cleanText(s: string) {
-  return s.replace(/\s+/g, ' ').trim();
-}
-
-function canonicalUrl(u: string) {
-  try {
-    const url = new URL(u);
-    url.hash = '';
-    url.pathname = url.pathname.replace(/\/+$/, '');
-    return url.toString();
-  } catch {
-    return u.replace(/\/+$/, '');
-  }
-}
+import { cleanText, chunkWithOverlap, sha256 } from '@/app/libs/text';
+import { canonicalUrl } from '@/app/libs/url';
 
 function toIsoDateOrNull(s: string | null | undefined): string | null {
   if (!s) return null;
@@ -71,65 +52,6 @@ function makeSectionSummaryBullets(text: string, maxBullets = 5) {
 
   return bullets.map((b) => `- ${b}`).join('\n');
 }
-
-function chunkWithOverlap(text: string) {
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    const end = Math.min(start + MAX_CHARS, text.length);
-    const slice = text.slice(start, end).trim();
-    if (slice) chunks.push(slice);
-
-    if (end === text.length) break;
-    start = Math.max(0, end - OVERLAP_CHARS);
-  }
-
-  return chunks;
-}
-
-const TOPICS = [
-  {
-    topic: 'ingestion',
-    keywords: ['rss', 'scrape', 'parsing', 'html', 'pdf', 'dedup', 'version'],
-  },
-  { topic: 'chunking', keywords: ['chunk', 'overlap', 'section', 'splitting'] },
-  {
-    topic: 'embeddings',
-    keywords: ['embedding', 'embeddings', 'vector dimension', 'tokenizer'],
-  },
-  {
-    topic: 'vector_storage',
-    keywords: ['qdrant', 'payload', 'filter', 'collection', 'index'],
-  },
-  {
-    topic: 'retrieval',
-    keywords: ['retrieval', 'top-k', 'hybrid', 'bm25', 'mmr', 'search'],
-  },
-  {
-    topic: 'reranking',
-    keywords: ['rerank', 'reranking', 'cross-encoder', 'cohere'],
-  },
-  {
-    topic: 'prompting_grounding',
-    keywords: ['grounding', 'context', 'citations', 'hallucination'],
-  },
-  {
-    topic: 'evaluation',
-    keywords: [
-      'evaluation',
-      'eval',
-      'benchmark',
-      'mteb',
-      'metrics',
-      'regression',
-    ],
-  },
-  {
-    topic: 'production_ops',
-    keywords: ['latency', 'throughput', 'cost', 'monitoring', 'cache'],
-  },
-] as const;
 
 function inferTopic(title: string, sectionPath: string, text: string): string {
   const hay = `${title}\n${sectionPath}\n${text}`.toLowerCase();

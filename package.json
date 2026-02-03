@@ -9,9 +9,10 @@
     "lint": "eslint",
     "test": "jest",
     "ingest:dry": "npx tsx -r dotenv/config app/scripts/ingest_all.ts --dry-run",
-    "eval": "npx tsx -r dotenv/config app/scripts/eval_sources.ts",
+    "eval-sources": "npx tsx -r dotenv/config app/scripts/eval_sources.ts",
     "weekly-check": "npm run ingest:dry && npm run eval",
-    "ingest": "tsx -r dotenv/config app/scripts/ingest_all.ts"
+    "ingest": "npx tsx -r dotenv/config app/scripts/ingest_all.ts",
+    "eval": "npx tsx -r dotenv/config app/scripts/run_eval.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.16.2",

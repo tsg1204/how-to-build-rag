@@ -33,6 +33,20 @@ function canonicalUrl(u?: string | null) {
   }
 }
 
+function parseDateOrNull(s?: string | null) {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// pick best available date for ordering (published_date first, then retrieved_at)
+function bestCitationDate(c: {
+  published_date?: string | null;
+  retrieved_at?: string | null;
+}) {
+  return parseDateOrNull(c.published_date) ?? parseDateOrNull(c.retrieved_at);
+}
+
 export async function generateAnswer(params: {
   query: string;
   chunks: Chunk[];
@@ -112,22 +126,35 @@ export async function generateAnswer(params: {
   const rawCitations = chunks.map((c, i) => ({
     ref: `#${i + 1}`,
     ...c.citation,
-    url: canonicalUrl(c.citation.url),
+    _origIndex: i, // keep original relevance order
   }));
 
-  // Dedupe citations by (url + section_path + title), keep order, cap to 5
+  // Dedupe by canonical URL + section + title, keep first, cap to 5
   const MAX_CITATIONS = 5;
   const seen = new Set<string>();
-  const citations = [];
+  const deduped: typeof rawCitations = [];
 
   for (const c of rawCitations) {
     const key = `${canonicalUrl(c.url)}::${(c.section_path ?? '').trim()}::${(c.title ?? '').trim()}`;
-
     if (seen.has(key)) continue;
     seen.add(key);
-    citations.push(c);
-    if (citations.length >= MAX_CITATIONS) break;
+    deduped.push(c);
   }
+
+  // Prefer newer content when possible (newest first), but keep relevance as fallback
+  deduped.sort((a, b) => {
+    const da = bestCitationDate(a);
+    const db = bestCitationDate(b);
+
+    if (da && db) return db.getTime() - da.getTime(); // newer first
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    return a._origIndex - b._origIndex; // fallback: original order
+  });
+
+  const citations = deduped
+    .slice(0, MAX_CITATIONS)
+    .map(({ _origIndex, ...c }) => c);
 
   return {
     state: 'answer',

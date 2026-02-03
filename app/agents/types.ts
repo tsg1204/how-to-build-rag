@@ -1,3 +1,10 @@
+export type AgentType = 'rag' | 'rag_essay';
+
+export interface AgentConfig {
+  name: string;
+  description: string;
+}
+
 export type GuardrailDecision =
   | { state: 'allow'; matchedTopics?: string[] }
   | { state: 'ask_to_reframe'; example: string; matchedTopics?: string[] }

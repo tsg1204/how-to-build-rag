@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 
 type QueryResponse = {
   state: 'answer' | 'not_covered' | 'deny' | 'ask_to_reframe';
+  mode?: 'answer' | 'essay';
   query: string;
   answer?: string;
   citations?: Array<{
@@ -22,6 +23,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'answer' | 'essay'>('answer');
 
   async function ask() {
     if (!query.trim()) return;
@@ -33,7 +35,7 @@ export default function Page() {
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, mode }),
       });
       const json = await res.json();
       setData(json);
@@ -53,7 +55,35 @@ export default function Page() {
 
   return (
     <main style={{ maxWidth: 900, margin: '40px auto', padding: 16 }}>
-      <h1>How to Build RAG</h1>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
+        <h1 style={{ margin: 0 }}>How to Build RAG</h1>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, color: '#ccc' }}>Mode</span>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as 'answer' | 'essay')}
+            disabled={loading}
+            style={{
+              padding: '8px 10px',
+              border: '1px solid #ccc',
+              borderRadius: 6,
+              fontSize: 14,
+              background: '#111',
+            }}
+          >
+            <option value="answer">Answer</option>
+            <option value="essay">Essay</option>
+          </select>
+        </label>
+      </div>
 
       <textarea
         rows={4}
@@ -82,7 +112,7 @@ export default function Page() {
             cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
-          {loading ? 'Thinking…' : 'Ask'}
+          {loading ? 'Thinking…' : 'Submit'}
         </button>
 
         <button
@@ -223,8 +253,8 @@ export default function Page() {
         )}
       </div>
 
-      {/* Citations window */}
-      {data?.citations?.length ? (
+      {/* Citations window  Answer move only*/}
+      {data?.mode !== 'essay' && data?.citations?.length ? (
         <div
           style={{
             marginTop: 16,

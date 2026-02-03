@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnswer } from '@/app/agents/answer';
+import { generateEssay } from '@/app/agents/essay';
 import { payloadToChunk } from '@/app/agents/chunks';
 import { classifyQuery } from '@/app/agents/guardrail';
 import { retrieveTopChunks } from '@/app/agents/retrieve';
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const query = typeof body?.query === 'string' ? body.query.trim() : '';
+    const mode =
+      body?.mode === 'essay' || body?.mode === 'answer' ? body.mode : 'answer';
 
     if (!query) {
       return NextResponse.json(
@@ -45,6 +48,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           state: 'deny',
+          mode,
           matchedTopics: decision.matchedTopics || [],
           message:
             'This assistant is limited to questions about building RAG systems (retrieval, chunking, evaluation, etc.).',
@@ -57,6 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           state: 'ask_to_reframe',
+          mode,
           matchedTopics: decision.matchedTopics,
           message:
             'This assistant focuses on how to build RAG systems. Please reframe your question as a RAG-building question.',
@@ -96,6 +101,7 @@ export async function POST(req: NextRequest) {
     if (candidates.length === 0) {
       return NextResponse.json({
         state: 'not_covered',
+        mode,
         query,
         message: 'Not covered by the dataset.',
         matchedTopics: decision.matchedTopics,
@@ -119,17 +125,21 @@ export async function POST(req: NextRequest) {
       }),
     );
 
-    const answer = await generateAnswer({ query, chunks });
+    const result =
+      mode === 'essay'
+        ? await generateEssay({ query, chunks })
+        : await generateAnswer({ query, chunks });
 
     const DEBUG = process.env.DEBUG === '1';
     const trace = buildTrace(reranked, retrievalScoreById);
 
     return NextResponse.json({
-      state: answer.state,
+      state: result.state,
+      mode,
       matchedTopics: decision.matchedTopics,
       query,
-      answer: answer.answer,
-      citations: answer.citations,
+      answer: result.answer,
+      citations: result.citations,
       debug,
       ...(DEBUG ? { trace } : undefined),
     });

@@ -9,6 +9,23 @@ export type RetrievedChunk = {
   payload?: Record<string, unknown>;
 };
 
+function isVagueQuery(q: string) {
+  const s = q.trim().toLowerCase();
+
+  // short + generic questions are usually vague
+  const tokenCount = s.split(/\s+/).filter(Boolean).length;
+  if (tokenCount <= 6) return true;
+
+  // “what is / explain / overview” style
+  if (
+    /\bwhat is\b|\bexplain\b|\boverview\b|\bintroduction\b|\bbasics\b/.test(s)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export async function retrieveTopChunks(
   query: string,
   limit = TOP_K,
@@ -38,31 +55,33 @@ export async function retrieveTopChunks(
       filter,
     });
 
-    return candidateResults.map((result: any) => ({
-      id: result.id,
-      score: result.score,
-      payload: result.payload,
-    }));
+    const results = candidateResults.map((result: any) => {
+      const payload = result.payload as Record<string, unknown>;
+      return {
+        id: result.id,
+        score: result.score,
+        text:
+          (payload.text as string) ||
+          (payload.content as string) ||
+          JSON.stringify(payload),
+        payload,
+      };
+    });
+
+    if (isVagueQuery(query)) {
+      for (const r of results) {
+        if (
+          (r.payload?.chunk_role as string | undefined) === 'section_summary'
+        ) {
+          r.score = r.score * 1.15; // small boost; tune later
+        }
+      }
+      results.sort((a, b) => b.score - a.score);
+    }
+
+    return results;
   } catch (e: any) {
     console.log('QDRANT_ERROR:', e?.data?.status?.error ?? e?.message ?? e);
     throw e;
   }
-
-  // await qdrantClient.getCollection('how_to_build_rag');
-  // console.log(candidateResults);
-  // // 3) normalize
-  // // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // return candidateResults.map((result: any) => {
-  //   const payload = result.payload as Record<string, unknown>;
-
-  //   return {
-  //     id: result.id,
-  //     score: result.score,
-  //     text:
-  //       (payload.text as string) ||
-  //       (payload.content as string) ||
-  //       JSON.stringify(payload),
-  //     payload, // ← keep this for citations
-  //   };
-  // });
 }

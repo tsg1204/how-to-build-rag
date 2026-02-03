@@ -14,6 +14,29 @@ function cleanText(s: string) {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+function canonicalUrl(u: string) {
+  try {
+    const url = new URL(u);
+    url.hash = '';
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.toString();
+  } catch {
+    return u.replace(/\/+$/, '');
+  }
+}
+
+function toIsoDateOrNull(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const t = cleanText(s);
+  if (!t) return null;
+
+  // already ISO-ish
+  const d1 = new Date(t);
+  if (!Number.isNaN(d1.getTime())) return d1.toISOString();
+
+  return null;
+}
+
 function splitSentences(text: string) {
   // simple, good-enough sentence split for v1
   return text
@@ -234,6 +257,7 @@ export async function ingestUrl(params: {
   dataset: string;
 }) {
   const { url, publisher, dataset } = params;
+  const normalizedUrl = canonicalUrl(url);
 
   const fetchedAt = new Date().toISOString();
 
@@ -273,10 +297,15 @@ export async function ingestUrl(params: {
     cleanText($("meta[name='description']").attr('content') || '') ||
     '';
 
-  const publishedDate =
+  const rawPublished =
     $('time[datetime]').attr('datetime') ||
     $("meta[property='article:published_time']").attr('content') ||
+    $("meta[name='publish_date']").attr('content') ||
+    $("meta[name='date']").attr('content') ||
+    $("meta[property='og:updated_time']").attr('content') ||
     '';
+
+  const publishedDate = toIsoDateOrNull(rawPublished);
 
   const publishedDateText =
     cleanText($('time').first().text()) ||
@@ -403,7 +432,7 @@ export async function ingestUrl(params: {
   }
 
   // 3) doc identity + versioning
-  const docId = url;
+  const docId = normalizedUrl;
   const contentHash = sha256(
     sections.map((s) => `${s.sectionPath}\n${s.text}`).join('\n\n'),
   );
@@ -441,9 +470,9 @@ export async function ingestUrl(params: {
           dataset,
           publisher,
           title,
-          url,
-          source: url,
-          published_date: publishedDate || null,
+          url: normalizedUrl,
+          source: normalizedUrl,
+          published_date: publishedDate,
           published_date_text: publishedDateText,
           retrieved_at: fetchedAt,
           fetched_at: fetchedAt,

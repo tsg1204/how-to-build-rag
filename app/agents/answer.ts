@@ -20,6 +20,19 @@ export type Chunk = {
   };
 };
 
+function canonicalUrl(u?: string | null) {
+  if (!u) return '';
+  try {
+    const url = new URL(u);
+    url.hash = '';
+    // normalize trailing slash
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.toString();
+  } catch {
+    return u.replace(/\/+$/, '');
+  }
+}
+
 export async function generateAnswer(params: {
   query: string;
   chunks: Chunk[];
@@ -96,12 +109,29 @@ export async function generateAnswer(params: {
     messages: [{ role: 'user', content: prompt }],
   });
 
+  const rawCitations = chunks.map((c, i) => ({
+    ref: `#${i + 1}`,
+    ...c.citation,
+    url: canonicalUrl(c.citation.url),
+  }));
+
+  // Dedupe citations by (url + section_path + title), keep order, cap to 5
+  const MAX_CITATIONS = 5;
+  const seen = new Set<string>();
+  const citations = [];
+
+  for (const c of rawCitations) {
+    const key = `${canonicalUrl(c.url)}::${(c.section_path ?? '').trim()}::${(c.title ?? '').trim()}`;
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+    citations.push(c);
+    if (citations.length >= MAX_CITATIONS) break;
+  }
+
   return {
     state: 'answer',
     answer: resp.choices[0]?.message?.content ?? '',
-    citations: chunks.map((c, i) => ({
-      ref: `#${i + 1}`,
-      ...c.citation,
-    })),
+    citations,
   };
 }

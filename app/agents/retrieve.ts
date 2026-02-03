@@ -4,8 +4,6 @@ import type { RetrievedChunk } from './types';
 
 const TOP_K = Number(process.env.RAG_TOP_K ?? 8);
 
-export type { RetrievedChunk } from './types';
-
 function isVagueQuery(q: string) {
   const s = q.trim().toLowerCase();
 

@@ -40,6 +40,13 @@ export type RerankedDoc = {
   rerankScore?: number;
 };
 
+/** Options for mapping a reranked doc to Chunk (used by payloadToChunk). */
+export type PayloadToChunkOptions = {
+  retrievalScoreById: Map<string, number>;
+  rerankRank: number;
+  rerankScore?: number | null;
+};
+
 /** Debug trace entry for a reranked doc (e.g. for DEBUG=1 response or evals). */
 export type TraceEntry = {
   rerank_rank: number;

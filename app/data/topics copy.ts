@@ -4,18 +4,6 @@
  * No duplicates: each topic appears once; keywords per topic are deduplicated.
  */
 
-/** Terms that indicate the query is about building RAG (guardrail: allow only if query contains at least one). */
-export const CORE_RAG_TERMS = [
-  'rag',
-  'retrieval',
-  'retrieve',
-  'chunk',
-  'embedding',
-  'vector search',
-  'citation',
-  'rerank',
-] as const;
-
 function dedupeKeywords(keywords: string[]): string[] {
   const seen = new Set<string>();
   return keywords.filter((k) => {

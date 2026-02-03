@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateAnswer, payloadToChunk } from '@/app/agents/answer';
+import { generateAnswer } from '@/app/agents/answer';
+import { payloadToChunk } from '@/app/agents/chunks';
 import { classifyQuery } from '@/app/agents/guardrail';
 import { retrieveTopChunks } from '@/app/agents/retrieve';
 import { rerankTopK } from '@/app/agents/rerank';
@@ -65,8 +66,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // allow → retrieve (stub: return chunks only)
-    //const chunks = await retrieveTopChunks(query);
     const topK = Number(process.env.RAG_TOP_K ?? 8);
     const candidateLimit = Math.max(topK * 3, 20);
 

@@ -1,5 +1,9 @@
-import { TOPICS } from '@/app/data/topics';
+import { CORE_RAG_TERMS, TOPICS } from '@/app/data/topics';
 import { GuardrailDecision } from './types';
+
+function hasRagContext(q: string): boolean {
+  return CORE_RAG_TERMS.some((term) => q.includes(term));
+}
 
 export function classifyQuery(query: string): GuardrailDecision {
   const q = query.toLowerCase();
@@ -8,7 +12,7 @@ export function classifyQuery(query: string): GuardrailDecision {
     t.keywords.some((k) => q.includes(k)),
   ).map((t) => t.topic);
 
-  if (matchedTopics.length > 0) {
+  if (matchedTopics.length > 0 && hasRagContext(q)) {
     return { state: 'allow', matchedTopics };
   }
 

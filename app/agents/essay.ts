@@ -4,6 +4,10 @@ import type { Chunk } from './types';
 export async function generateEssay(input: { query: string; chunks: Chunk[] }) {
   const { query, chunks } = input;
 
+  // If evidence is very thin, produce a safe, high-level overview prompt
+  const hasEnoughContext =
+    chunks.length >= 2 && chunks.some((c) => c.text && c.text.length > 200);
+
   const context = chunks
     .map((c, i) => {
       const title = c.citation?.title ?? 'Untitled';
@@ -12,21 +16,35 @@ export async function generateEssay(input: { query: string; chunks: Chunk[] }) {
     })
     .join('\n\n---\n\n');
 
-  const system = `
-    You write short, presentation-friendly essays about building Retrieval Augmented Generation (RAG) systems.
-
-    Rules:
-    - Stay within RAG system building topics only.
-    - Use ONLY the provided context.
-    - Do not invent specific facts, product claims, benchmark numbers, or implementation details not supported by the context.
-    - If the context is thin, write a general overview using cautious language (e.g., "typically", "often").
-
-    Output requirements:
-    - Write 2 to 3 paragraphs.
-    - Each paragraph must be 2 to 5 sentences.
-    - No bullet points.
-    - No headings.
-    `.trim();
+  const system = hasEnoughContext
+    ? `
+      You write short, presentation-friendly essays about building Retrieval Augmented Generation (RAG) systems.
+      
+      Hard rules:
+      - Stay within RAG system building topics only.
+      - Use ONLY the provided context.
+      - Do not invent specific facts, benchmark numbers, or implementation details not supported by the context.
+      
+      Formatting rules:
+      - Output exactly 2 or 3 paragraphs (choose the best fit).
+      - Each paragraph must be 2 to 5 sentences.
+      - No bullet points.
+      - No headings.
+      - No prefacing text like "Sure" or "Here is".
+      `.trim()
+    : `
+      You write a high-level overview about building Retrieval Augmented Generation (RAG) systems.
+      
+      Rules:
+      - Write a general overview without specific claims.
+      - Use cautious language (for example: "typically", "often", "in many systems").
+      - Do not reference missing sources or say that information is unavailable.
+      
+      Formatting rules:
+      - Output exactly 2 paragraphs.
+      - No bullet points.
+      - No headings.
+      `.trim();
 
   const user = `
     User request:

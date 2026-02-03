@@ -154,8 +154,44 @@ The project uses **Next.js + TypeScript** for:
 
     *   No framework-specific tutorials
 
-This project prioritizes **clarity, correctness, and traceability** over breadth.
+## Essay Mode (Presentation-Oriented Output)
 
-## Status
+In addition to the standard question–answer flow, this project supports an **Essay mode** designed for writing short, presentation-friendly explanations about building Retrieval-Augmented Generation (RAG) systems.
 
-This project is under active development.v1 focuses on dataset quality, guardrails, and correct retrieval behavior.
+### Purpose
+
+Essay mode is intended for:
+
+- presentation slides and speaker notes
+- short written explanations or introductions
+- high-level overviews of RAG concepts
+
+Unlike the QA mode, which optimizes for precision and structured answers, Essay mode optimizes for **narrative flow and clarity**, while remaining grounded in retrieved sources.
+
+### Design Principles
+
+- **Same pipeline, different output**
+  Essay mode reuses the same query classification, retrieval, reranking, and chunking pipeline as QA mode. Only the final generation step differs.
+
+- **Grounded, not creative writing**
+  The essay generator is constrained to use retrieved context only. If evidence is limited, it produces a cautious, high-level overview rather than inventing specifics.
+
+- **Format guarantees**
+  Essay responses are:
+  - 2–3 paragraphs
+  - no bullet points
+  - no headings
+  - written in a presentation-friendly tone
+
+- **Minimal provenance noise**
+  Citations are not emphasized in the essay text itself to preserve readability. (QA mode remains the authoritative, citation-forward interface.)
+
+### Why this is not a separate “agent registry”
+
+Essay mode is implemented as an **output mode**, not a separate end-to-end agent. Both modes share the same retrieval and safety logic, ensuring:
+
+- consistent grounding behavior
+- no duplication of pipeline code
+- no drift between QA and Essay answers
+
+This design keeps the system simple while supporting multiple communication styles over the same RAG knowledge base.

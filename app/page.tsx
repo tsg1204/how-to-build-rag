@@ -66,7 +66,8 @@ export default function Page() {
         }}
       >
         Structured, source-grounded guidance for building RAG systems — with an
-        Essay mode for long-form synthesis.
+        Essay mode for a single, cohesive explanation built from multiple
+        sources.
       </p>
 
       <div

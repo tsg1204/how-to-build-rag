@@ -130,6 +130,7 @@ async function run() {
     console.log(`query: ${tc.query}`);
     if (resp) console.log(`state: ${resp.state}`);
     if (out.length) console.log(out.map((x) => `- ${x}`).join('\n'));
+    await new Promise((r) => setTimeout(r, 7000));
   }
 
   console.log(`\n[eval] passed=${passed}/${EVAL_CASES.length}`);

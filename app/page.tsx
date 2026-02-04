@@ -55,7 +55,7 @@ export default function Page() {
 
   return (
     <main style={{ maxWidth: 900, margin: '40px auto', padding: 16 }}>
-      <h1 style={{ margin: 0 }}>How to Build RAG</h1>
+      <h1 style={{ margin: 0 }}>How to Build RAG 🚀</h1>
       <p
         style={{
           margin: 0,

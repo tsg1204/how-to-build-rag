@@ -55,16 +55,28 @@ export default function Page() {
 
   return (
     <main style={{ maxWidth: 900, margin: '40px auto', padding: 16 }}>
+      <h1 style={{ margin: 0 }}>How to Build RAG</h1>
+      <p
+        style={{
+          margin: 0,
+          marginBottom: 10,
+          fontSize: 14,
+          color: '#ccc',
+          letterSpacing: '0.01em',
+        }}
+      >
+        Structured, source-grounded guidance for building RAG systems — with an
+        Essay mode for long-form synthesis.
+      </p>
+
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'right',
           gap: 12,
         }}
       >
-        <h1 style={{ margin: 0 }}>How to Build RAG</h1>
-
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, color: '#ccc' }}>Mode</span>
           <select
